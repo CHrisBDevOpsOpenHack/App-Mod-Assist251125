@@ -22,6 +22,12 @@ public class ChatService : IChatService
     private readonly string? _deploymentName;
     private readonly string? _managedIdentityClientId;
 
+    // Pre-serialized function schemas to avoid repeated serialization
+    private static readonly BinaryData GetAllExpensesSchema = BinaryData.FromString("""{"type":"object","properties":{"filter":{"type":"string","description":"Optional search term to filter expenses"},"status":{"type":"string","description":"Optional status filter (Draft, Submitted, Approved, Rejected)"}}}""");
+    private static readonly BinaryData EmptyObjectSchema = BinaryData.FromString("""{"type":"object","properties":{}}""");
+    private static readonly BinaryData CreateExpenseSchema = BinaryData.FromString("""{"type":"object","properties":{"userId":{"type":"integer","description":"User ID creating the expense"},"categoryId":{"type":"integer","description":"Category ID for the expense"},"amount":{"type":"number","description":"Amount in GBP"},"expenseDate":{"type":"string","description":"Date of the expense (YYYY-MM-DD)"},"description":{"type":"string","description":"Description of the expense"}},"required":["userId","categoryId","amount","expenseDate"]}""");
+    private static readonly BinaryData ApproveExpenseSchema = BinaryData.FromString("""{"type":"object","properties":{"expenseId":{"type":"integer","description":"ID of the expense to approve"},"reviewerId":{"type":"integer","description":"ID of the manager approving"}},"required":["expenseId","reviewerId"]}""");
+
     public bool IsGenAIEnabled => !string.IsNullOrEmpty(_endpoint);
 
     public ChatService(IConfiguration configuration, IExpenseService expenseService, ILogger<ChatService> logger)
@@ -90,61 +96,32 @@ public class ChatService : IChatService
                     new FunctionDefinition("get_all_expenses")
                     {
                         Description = "Retrieves all expenses from the database, optionally filtered by status or search term",
-                        Parameters = BinaryData.FromObjectAsJson(new
-                        {
-                            type = "object",
-                            properties = new
-                            {
-                                filter = new { type = "string", description = "Optional search term to filter expenses" },
-                                status = new { type = "string", description = "Optional status filter (Draft, Submitted, Approved, Rejected)" }
-                            }
-                        })
+                        Parameters = GetAllExpensesSchema
                     },
                     new FunctionDefinition("get_pending_approvals")
                     {
                         Description = "Gets all expenses that are pending approval",
-                        Parameters = BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
+                        Parameters = EmptyObjectSchema
                     },
                     new FunctionDefinition("get_dashboard_stats")
                     {
                         Description = "Gets dashboard statistics including total expenses, pending approvals, approved amount",
-                        Parameters = BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
+                        Parameters = EmptyObjectSchema
                     },
                     new FunctionDefinition("get_categories")
                     {
                         Description = "Gets all expense categories",
-                        Parameters = BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
+                        Parameters = EmptyObjectSchema
                     },
                     new FunctionDefinition("create_expense")
                     {
                         Description = "Creates a new expense",
-                        Parameters = BinaryData.FromObjectAsJson(new
-                        {
-                            type = "object",
-                            properties = new
-                            {
-                                userId = new { type = "integer", description = "User ID creating the expense" },
-                                categoryId = new { type = "integer", description = "Category ID for the expense" },
-                                amount = new { type = "number", description = "Amount in GBP" },
-                                expenseDate = new { type = "string", description = "Date of the expense (YYYY-MM-DD)" },
-                                description = new { type = "string", description = "Description of the expense" }
-                            },
-                            required = new[] { "userId", "categoryId", "amount", "expenseDate" }
-                        })
+                        Parameters = CreateExpenseSchema
                     },
                     new FunctionDefinition("approve_expense")
                     {
                         Description = "Approves a submitted expense",
-                        Parameters = BinaryData.FromObjectAsJson(new
-                        {
-                            type = "object",
-                            properties = new
-                            {
-                                expenseId = new { type = "integer", description = "ID of the expense to approve" },
-                                reviewerId = new { type = "integer", description = "ID of the manager approving" }
-                            },
-                            required = new[] { "expenseId", "reviewerId" }
-                        })
+                        Parameters = ApproveExpenseSchema
                     }
                 }
             };

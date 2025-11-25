@@ -384,7 +384,7 @@ public class ExpenseService : IExpenseService
         
         if (ex.Message.Contains("Managed Identity") || ex.Message.Contains("authentication") || ex.Message.Contains("Login failed"))
         {
-            _lastError = $"Managed Identity Error: {ex.Message}. Fix: 1) Ensure the managed identity is created in Azure. 2) Run the script.sql to grant database access using 'CREATE USER [identity-name] FROM EXTERNAL PROVIDER'. 3) Assign roles: db_datareader, db_datawriter, EXECUTE permission.";
+            _lastError = $"Managed Identity Error: {ex.Message}. Fix: 1) Ensure the managed identity is created in Azure. 2) Run the database role assignment script (run-sql-dbrole.py) to grant database access using 'CREATE USER [identity-name] FROM EXTERNAL PROVIDER'. 3) Assign roles: db_datareader, db_datawriter, EXECUTE permission.";
         }
     }
 

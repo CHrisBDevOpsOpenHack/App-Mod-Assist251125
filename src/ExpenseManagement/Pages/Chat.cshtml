@@ -61,10 +61,13 @@
     }
 
     function formatMessage(text) {
+        // First escape all HTML to prevent XSS
         let formatted = escapeHtml(text);
         
-        // Bold text
-        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // Apply safe formatting - regex patterns only match escaped content
+        // Bold text: **text** -> <strong>text</strong>
+        // The captured content is already HTML-escaped, so it's safe to wrap
+        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         
         // Handle numbered lists
         const lines = formatted.split('\n');
