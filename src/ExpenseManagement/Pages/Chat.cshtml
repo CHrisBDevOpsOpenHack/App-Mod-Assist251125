@@ -1,0 +1,163 @@
+@page
+@model ExpenseManagement.Pages.ChatModel
+@{
+    ViewData["Title"] = "Chat";
+}
+
+<div class="chat-container">
+    <div class="chat-header">
+        <h1>💬 Expense Assistant</h1>
+        <span id="genai-status" class="genai-badge"></span>
+    </div>
+    
+    <div class="chat-messages" id="chatMessages">
+        <div class="message assistant">
+            <div class="message-content">
+                Hello! I'm your Expense Management Assistant. I can help you:
+                <ul>
+                    <li>View your expenses</li>
+                    <li>Check pending approvals</li>
+                    <li>Get dashboard statistics</li>
+                    <li>Create new expenses</li>
+                </ul>
+                How can I help you today?
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-input-container">
+        <form id="chatForm" class="chat-form">
+            <input type="text" id="userMessage" placeholder="Type your message..." class="chat-input" autocomplete="off" />
+            <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const userMessageInput = document.getElementById('userMessage');
+    const genaiStatus = document.getElementById('genai-status');
+    let chatHistory = [];
+
+    // Check GenAI status
+    fetch('/api/chat/status')
+        .then(res => res.json())
+        .then(data => {
+            if (data.genAIEnabled) {
+                genaiStatus.textContent = '🟢 AI Enabled';
+                genaiStatus.classList.add('enabled');
+            } else {
+                genaiStatus.textContent = '🟡 Demo Mode';
+                genaiStatus.classList.add('demo');
+            }
+        });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatMessage(text) {
+        let formatted = escapeHtml(text);
+        
+        // Bold text
+        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Handle numbered lists
+        const lines = formatted.split('\n');
+        let inOl = false;
+        let inUl = false;
+        let result = [];
+        
+        for (let line of lines) {
+            const olMatch = line.match(/^(\d+)\.\s+(.*)$/);
+            const ulMatch = line.match(/^[-*]\s+(.*)$/);
+            
+            if (olMatch) {
+                if (!inOl) {
+                    if (inUl) { result.push('</ul>'); inUl = false; }
+                    result.push('<ol>');
+                    inOl = true;
+                }
+                result.push(`<li>${olMatch[2]}</li>`);
+            } else if (ulMatch) {
+                if (!inUl) {
+                    if (inOl) { result.push('</ol>'); inOl = false; }
+                    result.push('<ul>');
+                    inUl = true;
+                }
+                result.push(`<li>${ulMatch[1]}</li>`);
+            } else {
+                if (inOl) { result.push('</ol>'); inOl = false; }
+                if (inUl) { result.push('</ul>'); inUl = false; }
+                result.push(line + '<br>');
+            }
+        }
+        
+        if (inOl) result.push('</ol>');
+        if (inUl) result.push('</ul>');
+        
+        return result.join('');
+    }
+
+    function addMessage(content, role) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role}`;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.innerHTML = formatMessage(content);
+        
+        messageDiv.appendChild(contentDiv);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const message = userMessageInput.value.trim();
+        if (!message) return;
+        
+        addMessage(message, 'user');
+        userMessageInput.value = '';
+        
+        // Show typing indicator
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'message assistant typing';
+        typingDiv.innerHTML = '<div class="message-content"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+        chatMessages.appendChild(typingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    history: chatHistory
+                })
+            });
+            
+            const data = await response.json();
+            
+            // Remove typing indicator
+            typingDiv.remove();
+            
+            if (data.success) {
+                addMessage(data.message, 'assistant');
+                chatHistory.push({ role: 'user', content: message });
+                chatHistory.push({ role: 'assistant', content: data.message });
+            } else {
+                addMessage(`Error: ${data.error}`, 'assistant error');
+            }
+        } catch (error) {
+            typingDiv.remove();
+            addMessage(`Error: ${error.message}`, 'assistant error');
+        }
+    });
+</script>
+}

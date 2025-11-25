@@ -1,0 +1,83 @@
+@page
+@model ExpenseManagement.Pages.ApprovalsModel
+@{
+    ViewData["Title"] = "Approvals";
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="error-banner">
+        <div class="error-content">
+            <span class="error-icon">⚠️</span>
+            <div class="error-text">
+                <strong>Database Connection Error</strong>
+                <p>@Model.ErrorMessage</p>
+                @if (!string.IsNullOrEmpty(Model.ErrorSource))
+                {
+                    <small>Source: @Model.ErrorSource</small>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>Approve Expenses</h1>
+    </div>
+
+    <div class="card">
+        <h3>Pending expenses:</h3>
+        
+        <div class="filter-bar">
+            <form method="get" class="filter-form">
+                <div class="filter-group">
+                    <label for="filter">Filter:</label>
+                    <input type="text" id="filter" name="filter" value="@Model.Filter" placeholder="Search..." class="filter-input" />
+                </div>
+                <button type="submit" class="btn btn-secondary">Apply</button>
+            </form>
+        </div>
+
+        <div class="table-container">
+            <table class="expenses-table">
+                <thead>
+                    <tr>
+                        <th>DATE</th>
+                        <th>EMPLOYEE</th>
+                        <th>CATEGORY</th>
+                        <th>AMOUNT</th>
+                        <th>DESCRIPTION</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var expense in Model.PendingExpenses)
+                    {
+                        <tr>
+                            <td>@expense.ExpenseDate.ToString("dd/MM/yyyy")</td>
+                            <td>@expense.UserName</td>
+                            <td>@expense.CategoryName</td>
+                            <td>£@expense.Amount.ToString("N2")</td>
+                            <td>@expense.Description</td>
+                            <td>
+                                <form method="post" asp-page-handler="Approve" asp-route-id="@expense.ExpenseId" style="display:inline">
+                                    <button type="submit" class="btn btn-small btn-success">Approve</button>
+                                </form>
+                                <form method="post" asp-page-handler="Reject" asp-route-id="@expense.ExpenseId" style="display:inline">
+                                    <button type="submit" class="btn btn-small btn-danger">Reject</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.PendingExpenses.Any())
+                    {
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 2rem;">No pending expenses to approve</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
